@@ -1,0 +1,23 @@
+[package]
+name = "hachifont-tool"
+version = "0.1.0"
+edition = "2024"
+license = "BSD-3-Clause"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1.0.104"
+js-sys = "0.3.106"
+rabex = "0.2.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+wasm-bindgen = "0.2.129"
+web-sys = "0.3.106"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+debug = "line-tables-only"

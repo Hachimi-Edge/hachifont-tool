@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hachifont-tool</title>
+<style>
+body { font-family: sans-serif; max-width: 40em; margin: 1em auto; padding: 0 1em; background: #303030; color: #ffffff; }
+.section { margin-bottom: 1.5em; }
+pre { white-space: pre-wrap; background: #424242; color: #ffffff; }
+input { background: #424242; color: #ffffff; }
+a { color: #90CAF9; }
+</style>
+</head>
+<body>
+<h1>hachifont-tool</h1>
+<p><a href="/licenses.html">Licenses</a></p>
+
+<div class="section">
+	<h3>Source pack</h3>
+	<pre id="info">Loading base.hachifont…</pre>
+</div>
+
+<div class="section">
+	<h3>Replacement font (static .ttf/.otf files)</h3>
+	<input type="file" id="fontFile" accept=".ttf,.otf,.ttc,.otc">
+	<button id="replaceBtn">Replace font</button>
+	<button id="exportBtn" disabled>Export .hachifont</button>
+	<pre id="result"></pre>
+</div>
+
+<pre id="error" style="color:red"></pre>
+
+<script type="module">
+import init, { inspect_font, parse_hachifont, replace_font, build_hachifont } from "./pkg/hachifont_tool.js";
+await init();
+
+const BASE_URL = "base.hachifont";
+let base = null;
+let replaced = null;
+
+const $ = (id) => document.getElementById(id);
+
+function showFontInfo(target, pack) {
+	try {
+		const info = JSON.parse(inspect_font(pack.android, pack.fontPath));
+		target.textContent =
+			`font: ${info.name} (${info.fontDataLength} bytes), file: ${info.filePath}\n` +
+			`font_path: ${pack.fontPath}`;
+	}catch(e) {
+		target.textContent = String(e);
+	}
+}
+
+async function readFileInput(input) {
+	const file = input.files[0];
+	if(!file) return null;
+	return new Uint8Array(await file.arrayBuffer());
+}
+
+function fileName(dirFontPath, newName) {
+	return dirFontPath.replace(/[^/]+$/, newName).toLowerCase();
+}
+
+function download(name, bytes) {
+	const blob = new Blob([bytes], { type: "application/octet-stream" });
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(blob);
+	a.download = name;
+	a.click();
+	URL.revokeObjectURL(a.href);
+}
+
+try {
+	const resp = await fetch(BASE_URL);
+	if(!resp.ok) throw new Error(`failed to fetch base.hachifont: ${resp.status}`);
+	const bytes = new Uint8Array(await resp.arrayBuffer());
+	base = parse_hachifont(bytes);
+	showFontInfo($("info"), base);
+}catch(e) {
+	$("error").textContent = String(e);
+}
+
+$("replaceBtn").addEventListener("click", async () => {
+	$("error").textContent = "";
+	try {
+		if(!base) throw new Error("base pack not loaded");
+		const newFont = await readFileInput($("fontFile"));
+		if(!newFont) throw new Error("select a font file");
+		const newName = $("fontFile").files[0].name;
+		const result = replace_font(base.android, base.win, base.fontPath, newName, newFont);
+		replaced = {
+			android: result.android,
+			win: result.win,
+			fontPath: fileName(base.fontPath, newName),
+		};
+		showFontInfo($("result"), replaced);
+		$("exportBtn").disabled = false;
+	}catch(e) {
+		$("error").textContent = String(e);
+	}
+});
+
+$("exportBtn").addEventListener("click", async () => {
+	try {
+		const target = replaced || base;
+		if(!target) throw new Error("nothing to export");
+		const out = build_hachifont(target.android, target.win, target.fontPath);
+		download("custom_font.hachifont", out);
+	}catch(e) {
+		$("error").textContent = String(e);
+	}
+});
+</script>
+</body>
+</html>
