@@ -36,6 +36,7 @@ import init, { inspect_font, parse_hachifont, replace_font, build_hachifont } fr
 await init();
 
 const BASE_URL = "base.hachifont";
+const INVALID_FONT_ERR = "Invalid font file, select a static .ttf or .otf file.";
 let base = null;
 let replaced = null;
 
@@ -62,6 +63,13 @@ function fileName(dirFontPath, newName) {
 	return dirFontPath.replace(/[^/]+$/, newName).toLowerCase();
 }
 
+function isStaticFont(bytes) {
+	if(!bytes || bytes.length < 4) return false;
+	const head = bytes.slice(0, 4);
+	const magics = [new Uint8Array([0, 1, 0, 0]), new TextEncoder().encode("OTTO")];
+	return magics.some(magic => magic.every((byte, i) => head[i] === byte));
+}
+
 function download(name, bytes) {
 	const blob = new Blob([bytes], { type: "application/octet-stream" });
 	const a = document.createElement("a");
@@ -81,12 +89,19 @@ try {
 	$("error").textContent = String(e);
 }
 
+$("fontFile").addEventListener("change", async () => {
+	$("error").textContent = "";
+	const buf = await readFileInput($("fontFile"));
+	if(buf && !isStaticFont(buf)) $("error").textContent = INVALID_FONT_ERR;
+});
+
 $("replaceBtn").addEventListener("click", async () => {
 	$("error").textContent = "";
 	try {
 		if(!base) throw new Error("base pack not loaded");
 		const newFont = await readFileInput($("fontFile"));
 		if(!newFont) throw new Error("select a font file");
+		if(!isStaticFont(newFont)) throw new Error(INVALID_FONT_ERR);
 		const newName = $("fontFile").files[0].name;
 		const result = replace_font(base.android, base.win, base.fontPath, newName, newFont);
 		replaced = {
