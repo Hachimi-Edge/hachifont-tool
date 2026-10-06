@@ -3,6 +3,8 @@ name = "hachifont-tool"
 version = "0.1.0"
 edition = "2024"
 license = "BSD-3-Clause"
+repository = "https://github.com/Hachimi-Edge/hachifont-tool"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
